@@ -1,6 +1,6 @@
 # Design Principles
 
-The foundation every review in this repo is measured against. Each principle has a plain definition, what to do, and how to check it. IDs (e.g. `M6`, `U14`, `C3`, `A2`) are referenced by the [QC checklist](./qc-checklist.md).
+The foundation every review in this repo is measured against. Each principle has a plain definition, what to do, and how to check it. IDs (e.g. `M6`, `U14`, `C3`, `A2`, `B9`, `T2`) are referenced by the [QC checklist](./qc-checklist.md).
 
 Sections:
 
@@ -8,7 +8,8 @@ Sections:
 2. [Unslop AI designs (U1–U20)](#2-unslop-ai-designs)
 3. [CSS craft rules (C1–C10)](#3-css-craft-rules)
 4. [Accessibility baseline, WCAG 2.2 AA (A1–A12)](#4-accessibility-baseline-wcag-22-aa)
-5. [Credits](#5-credits)
+5. [Background treatments (B1–B22, guardrails T1–T8)](#5-background-treatments)
+6. [Credits](#6-credits)
 
 > **Motion caveat that applies to all of section 1:** every non-essential animation must respect `prefers-reduced-motion: reduce` (see `A9`). Expressive motion is a layer on top of a UI that already works without it.
 
@@ -161,7 +162,7 @@ A mostly neutral palette plus one deliberate accent for interaction and emphasis
 One icon family, one style (outline *or* filled), one stroke width, one size scale, optically aligned with text (`C5`). **Check:** no mixed icon sets or mixed fills in the same context.
 
 ### U13. Remove embellishments
-Delete decorative gradients, glows, glassmorphism, blobs, sparkles, drop shadows on everything and emoji in headings unless they carry meaning. **Check:** removing each ornament would make the design worse, not just plainer.
+Delete decorative gradients, glows, glassmorphism, blobs, sparkles, drop shadows on everything and emoji in headings unless they carry meaning. **Check:** removing each ornament would make the design worse, not just plainer. Background textures are the exception only when they meet section 5 (`T1`–`T8`).
 
 ### U14. Inner radius = outer − padding
 Nested rounded corners stay concentric (`C1`). **Check:** inner radius equals outer radius minus the gap.
@@ -278,7 +279,223 @@ Not in the original source lists; added as the non-negotiable floor. Any `A` fai
 
 ---
 
-## 5. Credits
+## 5. Background treatments
+
+Twenty-two background treatments that stop a design looking flat (B1–B22), plus eight guardrails (T1–T8) that every one of them must pass. A background is the stage, not the actor: it adds mood, material or brand, and the content on top must still win (`M3`).
+
+**How this fits with `U13` (remove embellishments):** a treatment from this section is allowed when it has a reason (brand, mood, material, wayfinding, or fixing gradient banding) and passes T1–T8. Picking one because the page "felt empty" is still slop.
+
+### Guardrails (apply to every treatment)
+
+| ID | Rule | How to check |
+|---|---|---|
+| T1 | **One treatment, one reason.** At most one textured background per view; never stack two (grain + halftone + grid). Name the reason it's there. | Remove it: if nothing is lost but noise, cut it (`U13`). |
+| T2 | **Text contrast over texture.** Measure `A1` against the worst point of the texture under the text (lightest speck on dark, darkest on light), not the average. If it fails, put the text on a solid surface or a scrim, e.g. `linear-gradient(oklch(0.15 0 0 / 0.6), oklch(0.15 0 0 / 0.6))`. Busy, high-frequency texture never sits directly behind body text, even if it passes. | Contrast checker at several sampled points; any fail is a Blocker. |
+| T3 | **Stage the focus.** Keep the texture's own contrast low behind content (about ΔL ≤ 0.06 in OKLCH, or grain opacity 3–8%). Only hero art may be loud, and only where no text sits. | Squint test: the background is never the first thing you see, unless it is the hero image. |
+| T4 | **Static by default.** Any movement is slow, uses `transform`/`opacity` only, stops under `prefers-reduced-motion: reduce`, and can be paused if it runs > 5s (`A9`). Never animate `feTurbulence`, `feDisplacementMap`, `filter: blur()` or `backdrop-filter` values per frame. | Toggle reduced motion; check DevTools Performance for repaints. |
+| T5 | **Light and fast.** Prefer CSS gradients and inline SVG (< ~10 KB). Bitmaps in AVIF/WebP: tiles < 20 KB, hero images < ~150 KB at 1280px, with `srcset`. Render SVG filters on one fixed-size layer; don't put them, `backdrop-filter`, or `background-attachment: fixed` on large scrolling areas. The background must not delay the page's main content (LCP). | Network panel sizes; Lighthouse LCP; scroll at 60fps on a mid-range phone. |
+| T6 | **Built on tokens, with a fallback.** Colours in OKLCH (`C3`, `C4`); a solid `background-color` declared first so text is readable if the image or filter fails; decorative layers on `::before`/`::after` with `pointer-events: none` (or an `<img alt="" aria-hidden="true">`); full-height sections use `100dvh` (`C9`). Non-Baseline features (`backdrop-filter` prefix, `@property`) sit behind `@supports` or degrade to static. | Read the CSS; block images and reload. |
+| T7 | **Every scheme.** Each treatment has a dark-mode variant (not just inverted: lower grain opacity, no pure `#000`, `C8`). Under `prefers-contrast: more` and `forced-colors: active`, drop the texture to a solid colour. | Toggle light/dark, increased contrast and forced colours. |
+| T8 | **Scales cleanly.** Tiles repeat without visible seams; pattern sizes are whole pixels and align to the spacing grid (`U5`) to avoid moiré; photos use `cover` with a chosen focal point (`background-position` / `object-position`). | View at 320, 768 and 1280px+ and at 200% zoom. |
+
+### Shared building blocks
+
+Most texture treatments are one of three primitives, tuned:
+
+```css
+/* 1. Noise layer (grain, paper, felt, graphite, clouds). Greyscale via feColorMatrix. */
+.texture { position: relative; isolation: isolate; background-color: var(--surface); }
+.texture::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: var(--texture-opacity, 0.06);
+  mix-blend-mode: multiply;            /* use soft-light or screen on dark surfaces */
+}
+@media (prefers-contrast: more), (forced-colors: active) { .texture::before { display: none; } }
+
+/* 2. Repeating gradient (grids, dots, halftone, flutes): pure CSS, zero requests. */
+/* 3. Pre-rendered image (photos, paintings, dithering, mosaics, contours): AVIF/WebP, alt="". */
+```
+
+`baseFrequency` sets the grain size (higher = finer); two values (`'0.8 0.03'`) stretch it into fibres or blades; `numOctaves` adds detail at a cost (keep ≤ 4).
+
+### The 22 treatments
+
+#### B1. Felt texture
+**What:** a soft, fibrous, matte surface like wool felt.
+**Use for:** warm, tactile, crafted brands; kids, games, hospitality, cosy empty states.
+**How:** noise layer with `baseFrequency='.6'`, `numOctaves='4'`, tinted by a mid-chroma OKLCH base (e.g. `oklch(0.55 0.09 30)`), opacity 0.10–0.15, `mix-blend-mode: soft-light`. A second, larger noise at 0.04 opacity breaks up repetition.
+**Watch:** felt is mid-dark and fuzzy, so text goes on a solid card (`T2`).
+
+#### B2. Fluted glass
+**What:** ribbed, reeded glass that slices and smears whatever sits behind it.
+**Use for:** premium hero panels, product launches, a frosted header over imagery.
+**How:** over an image or colour field, a ribbed overlay plus blur:
+```css
+.fluted {
+  background-image: repeating-linear-gradient(90deg,
+    oklch(1 0 0 / 0.16) 0 1px, oklch(1 0 0 / 0) 1px 10px, oklch(0 0 0 / 0.10) 10px 12px);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+@supports not (backdrop-filter: blur(1px)) { .fluted { background-color: oklch(0.95 0 0 / 0.85); } }
+```
+For a true refracted look, pre-render the photo with a displacement effect rather than using SVG `feDisplacementMap` on HTML (inconsistent in Safari).
+**Watch:** a cousin of glassmorphism (`U13`): use once, on a hero or one surface, never behind body text; `backdrop-filter` is costly on large or scrolling areas (`T5`).
+
+#### B3. Thermal gradients
+**What:** heat-map colour fields (deep blue → magenta → orange → yellow) that look like a thermal camera.
+**Use for:** energy, health and biometrics, AI and data products, anything about heat or intensity.
+**How:** 2–4 overlapping `radial-gradient(in oklch, …)` blobs on a dark base, then grain (`B9`) to stop banding. Keep hues on the thermal path; let OKLCH interpolation (`C4`) avoid the muddy middle.
+**Watch:** very high chroma: text on top needs a scrim or solid surface (`T2`); purely decorative, so never imply real data with it (`A6`).
+
+#### B4. Water ripples
+**What:** concentric rings or caustic light patterns like the surface of water.
+**Use for:** wellness, calm, travel, hydration or "drop"-based metaphors.
+**How:** rings via `repeating-radial-gradient(circle at 70% 40%, oklch(… / 0.10) 0 2px, transparent 2px 28px)`; caustics as a pre-rendered tile or an SVG with `feTurbulence` + `feDisplacementMap` rendered once.
+**Watch:** if it moves, animate a pre-rendered layer's `transform` slowly; static under reduced motion (`T4`). Strong rings can cause discomfort, so keep contrast low (`T3`).
+
+#### B5. Speckled graphite
+**What:** dark charcoal with fine light and dark specks, like terrazzo or graphite stone.
+**Use for:** dark-mode editorial, developer tools, hardware and premium tech.
+**How:** base `oklch(0.22 0.005 260)` (not black, `C8`), noise layer at a high `baseFrequency` (≈ 1.2) pushed into specks with `<feComponentTransfer><feFuncA type="discrete" tableValues="0 0 0 1"/></feComponentTransfer>`; specks at 0.15–0.25 opacity.
+**Watch:** a light speck behind light text kills contrast, so measure at the worst point (`T2`).
+
+#### B6. Single-hue landscapes
+**What:** layered hill or mountain silhouettes in one hue, each layer a step lighter toward the horizon.
+**Use for:** onboarding, empty states, footers, outdoor, travel and climate brands.
+**How:** 3–5 SVG `<path>` layers using one hue with even OKLCH lightness steps (e.g. L 0.35 / 0.45 / 0.55 / 0.65, same C and H, `C3`). Inline SVG, `preserveAspectRatio="xMidYMax slice"`, `aria-hidden="true"`.
+**Watch:** put text in the open "sky" area, never across the ridgelines; check the layer steps still read in dark mode (`T7`).
+
+#### B7. Blueprint grids
+**What:** a blue engineering sheet with fine and major grid lines.
+**Use for:** developer tools, engineering, docs, "how it works" and architecture sections.
+**How:**
+```css
+.blueprint {
+  --minor: oklch(0.9 0.05 250 / 0.14); --major: oklch(0.9 0.05 250 / 0.30);
+  background-color: oklch(0.40 0.12 255);
+  background-image:
+    linear-gradient(var(--major) 1px, transparent 1px), linear-gradient(90deg, var(--major) 1px, transparent 1px),
+    linear-gradient(var(--minor) 1px, transparent 1px), linear-gradient(90deg, var(--minor) 1px, transparent 1px);
+  background-size: 80px 80px, 80px 80px, 16px 16px, 16px 16px;
+}
+```
+**Watch:** grid size matches the spacing scale and aligns with the layout so content doesn't look misaligned (`T8`, `U17`).
+
+#### B8. Halftone
+**What:** a print-style dot pattern, often fading in size across the area.
+**Use for:** editorial, retro, pop art, comic, music and poster aesthetics.
+**How:** `radial-gradient(circle, var(--ink) 0 30%, transparent 31%) 0 0 / 8px 8px` over the base; fade with `mask-image: linear-gradient(to bottom, black, transparent)`. For photo halftones, pre-render.
+**Watch:** moiré at non-integer zoom or with other patterns; keep cell size whole pixels (`T8`); not behind small text.
+
+#### B9. Grainy gradients
+**What:** a smooth OKLCH gradient with a fine film grain on top.
+**Use for:** the safest default when a flat colour feels dead: heroes, cards, auth screens. The grain also hides gradient banding.
+**How:** `background: linear-gradient(135deg in oklch, var(--a), var(--b))` plus the noise layer at 0.04–0.08 opacity, `mix-blend-mode: overlay` (or `soft-light`).
+**Watch:** the most overused treatment of the set; keep the gradient to 2–3 close hues and the grain subtle (`T3`).
+
+#### B10. Grass texture
+**What:** dense, short vertical blades, like a lawn or turf from above or at ground level.
+**Use for:** sport, outdoors, gardening, sustainability, games.
+**How:** a pre-rendered photo or illustrated tile (AVIF, < 20 KB tile), or a stretched noise layer `baseFrequency='0.9 0.04'` tinted green in OKLCH. Best as a band (footer, section edge) rather than a full page.
+**Watch:** very busy: never behind text (`T2`); keep to one band (`T1`).
+
+#### B11. Dithered images
+**What:** a photo reduced to a few colours with ordered (Bayer) or error-diffusion dithering, for a retro digital look.
+**Use for:** tech, retro and lo-fi brands, editorial heroes, low-bandwidth aesthetics.
+**How:** dither at build time (image tool or script) into a 2–8 colour PNG/WebP from the palette tokens; display with `image-rendering: pixelated` if upscaled. Don't dither at runtime with JS.
+**Watch:** decorative images get `alt=""` (`A7`); dithered noise is high contrast, so no text on top without a solid surface (`T2`).
+
+#### B12. Paper texture
+**What:** warm off-white with faint fibres and blotches, like good paper stock.
+**Use for:** editorial, writing and reading apps, docs, invitations, anything meant to feel calm and printed.
+**How:** base `oklch(0.97 0.012 85)`; two noise layers: fine fibres (`baseFrequency='0.9'`, 0.05 opacity) and large blotches (`baseFrequency='0.02'`, 0.03 opacity).
+**Watch:** the safest texture behind long-form text, but still measure contrast (`T2`); dark mode becomes "dark paper" (`oklch(0.2 0.01 85)`), not inverted noise (`T7`).
+
+#### B13. Contour lines
+**What:** topographic isolines, like an elevation map.
+**Use for:** outdoor, maps and travel, data and research, adventure brands, section dividers.
+**How:** a pre-generated SVG (export from a contour generator, simplify paths, aim < 15 KB) with `stroke: oklch(… / 0.15)`, `fill: none`, `vector-effect: non-scaling-stroke`. Tile or use one large `cover` image.
+**Watch:** lines must stay low contrast so they don't read as content or charts (`T3`); keep stroke widths consistent at every size.
+
+#### B14. Cloud sky
+**What:** soft clouds on a sky gradient.
+**Use for:** aspirational, calm, weather, travel, "lightness" brands. Cloud-computing visuals are a cliché, so justify it (`U9`, `U13`).
+**How:** `linear-gradient(in oklch, oklch(0.75 0.1 240), oklch(0.92 0.04 230))` plus a low-frequency noise (`baseFrequency='0.008'`, `numOctaves='5'`) mapped to white alpha with `feColorMatrix`; or a pre-rendered photo.
+**Watch:** any drift is very slow `transform` only, off under reduced motion (`T4`); white clouds behind white text fail contrast (`T2`).
+
+#### B15. Pixel mosaics
+**What:** a field of large square tiles in related colours, like a low-res image blown up.
+**Use for:** games, creative tools, generative brand art, playful empty states.
+**How:** downscale an image or generate a tiny one (e.g. 16×9 px PNG, under 1 KB) and display it at full size with `image-rendering: pixelated; object-fit: cover`. Or an SVG of `<rect>`s from palette tokens.
+**Watch:** tile colours stay within a narrow lightness range so text on top can pass contrast (`T2`, `T3`).
+
+#### B16. Lens distortion
+**What:** a fisheye, barrel or chromatic-aberration warp of an image or grid.
+**Use for:** experimental heroes, music, fashion and art-led brands. Rarely in product UI.
+**How:** pre-render the distortion into the image. Live alternatives (SVG `feDisplacementMap` with a radial map, WebGL) are costly and inconsistent across browsers.
+**Watch:** never under text; animated warps can trigger vestibular discomfort, so static only unless reduced motion is honoured (`T4`, `A9`).
+
+#### B17. Stippled gradients
+**What:** a gradient built from dots whose density changes, like pen stippling, instead of a smooth blend.
+**Use for:** editorial illustration, science and research, handmade or print-inspired brands.
+**How:** pre-render with a stippling tool to SVG/PNG; or approximate with a fine dot grid (`B18`) masked by a gradient: `mask-image: linear-gradient(to top, black, transparent)`, layered over a noise threshold for irregularity.
+**Watch:** dense stipple areas behave like halftone: watch moiré and keep text off the dense end (`T2`, `T8`).
+
+#### B18. Square-dot grids
+**What:** a regular grid of tiny square (or round) dots.
+**Use for:** canvas and whiteboard tools, developer and design tools, dashboards, empty states.
+**How:**
+```css
+.dot-grid {   /* 2px square dot every 16px, colours from tokens */
+  background:
+    linear-gradient(90deg, var(--surface) 14px, transparent 0) 0 0 / 16px 16px,
+    linear-gradient(var(--surface) 14px, var(--dot) 0) 0 0 / 16px 16px;
+}
+/* round dots: radial-gradient(circle, var(--dot) 1px, transparent 1.5px) 0 0 / 16px 16px */
+```
+**Watch:** dot pitch equals the spacing unit so placed items snap to it (`T8`); dots at ≤ ~0.15 contrast so they don't read as content.
+
+#### B19. Blurred photos
+**What:** a photo blurred into a soft colour field, often from the content itself (album art, a profile photo).
+**Use for:** media players, profile and detail headers, ambient backgrounds that carry the content's colours.
+**How:** serve a tiny version (≈ 32–64 px wide) and scale it up with `filter: blur(24px); transform: scale(1.1)` (the scale hides blurred edges), or pre-blur at build time. Add a scrim for text.
+**Watch:** `filter: blur()` on a full-viewport element is expensive; pre-blur where you can (`T5`); contrast varies with each photo, so the scrim must guarantee `A1` for any image (`T2`).
+
+#### B20. Iridescent shapes
+**What:** holographic, hue-shifting shapes like oil on water or foil.
+**Use for:** beauty, fashion, music, launch moments. Highest slop risk in the set (`U13`).
+**How:**
+```css
+.iridescent {
+  background: conic-gradient(from var(--angle, 0deg) in oklch longer hue,
+    oklch(0.85 0.12 0), oklch(0.85 0.12 0));
+  filter: blur(40px);
+}
+@property --angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@media (prefers-reduced-motion: no-preference) {
+  .iridescent { animation: spin-hue 20s linear infinite; }
+}
+@keyframes spin-hue { to { --angle: 360deg; } }
+```
+Without `@property` support the shape stays static, which is fine. The blur bleeds past the box, so place it in a parent with `overflow: clip`.
+**Watch:** one shape, behind no text, with a reason; continuous hue cycling must be pausable if it runs > 5s (`A9`, `T4`).
+
+#### B21. Impressionist paintings
+**What:** a crop of a painterly, brush-stroke artwork as a backdrop.
+**Use for:** editorial, culture, luxury, wellness and calm brands.
+**How:** use public-domain works (check the licence and credit) or commissioned art; crop to a quiet area; AVIF/WebP with `srcset`; `object-position` on the focal point.
+**Watch:** AI-generated "in the style of" imagery can read as slop and has licence risk, so prefer real works (`U6`); place text on a calm region or a scrim (`T2`).
+
+#### B22. ASCII and pixels
+**What:** a field of ASCII characters or pixel art forming an image or pattern.
+**Use for:** developer tools, terminal and CLI products, retro and hacker aesthetics.
+**How:** pre-render to an image or `<canvas>` for large areas; if it must be live text, use a `<pre aria-hidden="true">` with `user-select: none`, sized in `ch` units, capped in size to keep the DOM small. Monospace is correct here because the characters are the art (`U4`).
+**Watch:** screen readers must not read it (`aria-hidden`, `A7`); animated "matrix rain" stops under reduced motion and must be pausable (`T4`, `A9`).
+
+---
+
+## 6. Credits
 
 The source lists were shared by **charles.unemployed** and draw on:
 
@@ -287,5 +504,6 @@ The source lists were shared by **charles.unemployed** and draw on:
 - **Jon Yablonski** — [Laws of UX](https://lawsofux.com) (M13, M15–M19)
 - **Emil Kowalski** — frequency of use (M20); see [emilkowal.ski](https://emilkowal.ski) and [animations.dev](https://animations.dev)
 - **W3C** — [WCAG 2.2](https://www.w3.org/TR/WCAG22/) (section 4, added here)
+- **Background treatments (section 5)** — the list of 22 comes from a "22 Backgrounds to Make Designs Less Flat" post Baruch shared (creator not named in the screenshot). Descriptions, implementations and guardrails T1–T8 were written by this agent.
 
 Expansions, thresholds and code examples beyond the source definitions were added by this agent and should be revisited during the [skills-upkeep review](./skills-upkeep.md).
