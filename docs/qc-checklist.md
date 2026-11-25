@@ -56,6 +56,16 @@ Work through each group. Mark every item **Pass**, **Fix**, or **N/A** (with rea
 - [ ] C10 Product shots on white use `multiply` (light backgrounds only)
 - [ ] M11 Consistent light source and elevation scale
 
+### D2. Backgrounds & texture (when a background treatment B1–B22 is used)
+- [ ] T1 One treatment per view, with a stated reason (passes `U13`)
+- [ ] T2 Text over texture meets A1 at the worst sampled point; body text never directly on busy texture
+- [ ] T3 Texture contrast low behind content (≈ ΔL ≤ 0.06, grain 3–8%); squint test still finds the content first
+- [ ] T4 Static by default; any motion is slow `transform`/`opacity`, off under reduced motion, pausable > 5s
+- [ ] T5 CSS/SVG preferred; tiles < 20 KB, hero < ~150 KB AVIF/WebP; no large `backdrop-filter`/SVG filters on scrolling areas; LCP not delayed
+- [ ] T6 OKLCH tokens, solid `background-color` fallback, decorative layer `pointer-events: none` / `aria-hidden`, `@supports` for non-Baseline features
+- [ ] T7 Dark-mode variant designed; texture removed under `prefers-contrast: more` and `forced-colors`
+- [ ] T8 No seams or moiré; pattern size on the spacing grid; checked at 320 / 768 / 1280px+ and 200% zoom
+
 ### E. Interaction & feedback
 - [ ] U19 Loading, empty, error and success states designed
 - [ ] M17 Feedback within 100ms; async > 400ms shows progress
@@ -83,9 +93,9 @@ Work through each group. Mark every item **Pass**, **Fix**, or **N/A** (with rea
 
 | Level | Meaning | Examples |
 |---|---|---|
-| **Blocker** | Must fix before shipping. Excludes users or breaks the task. | Any `A` failure; no loading/error state on a critical flow; primary action unreachable |
-| **Major** | Clearly hurts usability or trust; fix in this iteration. | Two competing primary CTAs; generic headline on a landing page; 600ms transitions; `100vh` hero |
-| **Minor** | Polish. Fix when touching the area. | Non-concentric radius; solid hex border; non-tabular numbers in a small table |
+| **Blocker** | Must fix before shipping. Excludes users or breaks the task. | Any `A` failure (including text over a texture failing contrast, `T2`); no loading/error state on a critical flow; primary action unreachable |
+| **Major** | Clearly hurts usability or trust; fix in this iteration. | Two competing primary CTAs; generic headline on a landing page; 600ms transitions; `100vh` hero; background competing with content or stacked textures (`T1`, `T3`); animated texture ignoring reduced motion (`T4`) |
+| **Minor** | Polish. Fix when touching the area. | Non-concentric radius; solid hex border; non-tabular numbers in a small table; visible tile seam or moiré (`T8`); oversized texture file (`T5`) |
 
 ## 4. Scoring rubric
 
@@ -100,7 +110,7 @@ Score each category 0–5:
 | 1 | Poor — fundamental issues |
 | 0 | Not addressed |
 
-Categories (weight): **Accessibility (×2)**, Hierarchy & layout, Content & copy, Visual craft, Interaction & feedback, Motion. Categories marked N/A are dropped from the total. Overall = weighted average, rounded to one decimal.
+Categories (weight): **Accessibility (×2)**, Hierarchy & layout, Content & copy, Visual craft, Interaction & feedback, Motion. Background checks (D2) score under Visual craft, except `T2` (Accessibility) and `T4` (Motion). Categories marked N/A are dropped from the total. Overall = weighted average, rounded to one decimal.
 
 **Verdict:**
 - **PASS** — no blockers and overall ≥ 4.0

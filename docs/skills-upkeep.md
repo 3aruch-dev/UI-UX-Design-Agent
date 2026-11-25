@@ -56,3 +56,4 @@ Trend-driven aesthetics (a new "look") are noted but not turned into rules unles
 | Date | Change | Source |
 |---|---|---|
 | 2026-11-25 | Initial principles: 20 UX & animation principles, 20 unslop rules, 10 CSS craft rules, WCAG 2.2 AA baseline | charles.unemployed; see [principles credits](./principles.md#5-credits) |
+| 2026-11-25 | Added section 5, background treatments B1–B22 with guardrails T1–T8; QC group D2; `U13` now points to section 5 | "22 Backgrounds to Make Designs Less Flat" list shared by Baruch; implementations by this agent |
